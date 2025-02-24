@@ -1,0 +1,20 @@
+#!/bin/bash
+currentLocation=`pwd`
+targetLocation=`find $currentLocation/ -name runOnVm`
+cd $targetLocation
+
+sudo chmod +x scripts/qubes-vpn-handler.sh
+sudo chmod +x getRemotes.sh
+
+cat scripts/startup > /rw/config/rc.local
+
+sudo chmod +x /rw/config/rc.local
+
+mkdir --parents /rw/config/vpn
+cp passAndOvpn/*.ovpn /rw/config/vpn/openvpn-client.ovpn
+cp passAndOvpn/pass.txt /rw/config/vpn/pass.txt
+cp scripts/qubes-firewall-user-script /rw/config/qubes-firewall-user-script
+cp scripts/qubes-vpn-handler.sh /rw/config/vpn/qubes-vpn-handler.sh
+
+python3 configureVpnFile.py
+./getRemotes.sh $1

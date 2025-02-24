@@ -1,0 +1,40 @@
+#!/bin/sh
+
+# This script is called at AppVM boot if this AppVM has the qubes-firewall
+# service enabled. It is executed after the empty chains for the Qubes firewall
+# are created, but before rules for attached qubes are processed and inserted.
+#
+# It is a good place for custom rules and actions that should occur when the
+# firewall service is started.
+#
+# Executable scripts located in /rw/config/qubes-firewall.d are executed
+# immediately before this qubes-firewall-user-script.
+
+#!/bin/bash
+
+#    Block forwarding of connections through upstream network device
+#    (in case the vpn tunnel breaks):
+# Prevent the qube to forward traffic outside of the VPN
+nft insert rule qubes custom-forward oifname eth0 counter drop
+nft insert rule ip6 qubes custom-forward oifname eth0 counter drop
+nft insert rule qubes custom-forward iifname eth0 counter drop
+nft insert rule ip6 qubes custom-forward iifname eth0 counter drop
+
+
+#    Accept traffic to VPN
+nft 'add chain qubes output { type filter hook output priority 0; policy accept; }'
+
+#    Add the `qvpn` group to system, if it doesn't already exist
+if ! grep -q "^qvpn:" /etc/group ; then
+     groupadd -rf qvpn
+     sync
+fi
+sleep 2s
+
+#    Block non-VPN traffic to clearnet
+nft insert rule ip qubes output oifname eth0 counter drop
+
+
+#    Allow traffic from the `qvpn` group to the uplink interface (eth0);
+#    Our VPN client will run with group `qvpn`.
+nft insert rule ip qubes output oifname eth0 skgid qvpn accept
